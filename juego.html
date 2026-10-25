@@ -1,0 +1,567 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Juego del 20</title>
+  <script>
+    // Aplica el tema guardado antes de pintar, para evitar parpadeo
+    try {
+      const t = localStorage.getItem('tema');
+      if (t === 'claro' || t === 'oscuro') document.documentElement.dataset.theme = t === 'claro' ? 'light' : 'dark';
+    } catch (e) {}
+  </script>
+  <style>
+    :root {
+      --bg: #f7f8fb;
+      --surface: #ffffff;
+      --text: #1d2233;
+      --muted: #5d6478;
+      --border: #e3e6ee;
+      --accent: #4f46e5;
+      --accent-soft: #eef0ff;
+      --shadow: 0 1px 2px rgba(20, 24, 40, .04), 0 4px 16px rgba(20, 24, 40, .06);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root:not([data-theme="light"]) {
+        --bg: #0f1117;
+        --surface: #181b24;
+        --text: #e8eaf2;
+        --muted: #9aa1b5;
+        --border: #2a2f3d;
+        --accent: #8b85ff;
+        --accent-soft: #23234a;
+        --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+      }
+    }
+    :root[data-theme="dark"] {
+      --bg: #0f1117;
+      --surface: #181b24;
+      --text: #e8eaf2;
+      --muted: #9aa1b5;
+      --border: #2a2f3d;
+      --accent: #8b85ff;
+      --accent-soft: #23234a;
+      --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 4px 16px rgba(0, 0, 0, .25);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    .contenedor {
+      max-width: 720px;
+      margin: 0 auto;
+      padding: 0 16px;
+    }
+    [hidden] { display: none !important; }
+
+    /* Cabecera */
+    header { padding: 56px 0 24px; }
+    .cabecera {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    h1 {
+      margin: 0;
+      font-size: clamp(2rem, 6vw, 2.75rem);
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+    }
+    .subtitulo {
+      margin: 8px 0 0;
+      font-size: 1.125rem;
+      color: var(--muted);
+    }
+    .boton-tema {
+      flex-shrink: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font-size: 1.25rem;
+      cursor: pointer;
+      box-shadow: var(--shadow);
+    }
+
+    /* Tarjetas */
+    .tarjeta {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    h2 {
+      margin: 0 0 12px;
+      font-size: 1.25rem;
+      letter-spacing: -0.01em;
+    }
+    .tarjeta p { margin: 0; color: var(--muted); }
+
+    .boton {
+      padding: 10px 18px;
+      font: inherit;
+      font-weight: 600;
+      color: #fff;
+      background: var(--accent);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+    }
+    .boton:hover { filter: brightness(1.08); }
+    .boton:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+    :focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* Juego */
+    .reglas {
+      margin: 0;
+      padding-left: 20px;
+      color: var(--muted);
+    }
+    .reglas li { margin-bottom: 4px; }
+    .reglas strong { color: var(--text); }
+
+    .ajustes {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: flex-end;
+      margin-bottom: 20px;
+    }
+    .ajuste {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: .8rem;
+      color: var(--muted);
+    }
+    .ajuste select {
+      padding: 8px 10px;
+      font: inherit;
+      font-size: .95rem;
+      color: var(--text);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .marcador {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      font-size: .9rem;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .marcador strong { color: var(--text); font-variant-numeric: tabular-nums; }
+    .numero {
+      text-align: center;
+      font-size: clamp(4rem, 18vw, 6rem);
+      font-weight: 800;
+      line-height: 1;
+      letter-spacing: -0.04em;
+      font-variant-numeric: tabular-nums;
+    }
+    .estado {
+      text-align: center;
+      margin: 8px 0 16px !important;
+      font-weight: 600;
+      color: var(--text) !important;
+      min-height: 1.6em;
+    }
+    .pista {
+      display: grid;
+      grid-template-columns: repeat(10, 1fr);
+      gap: 4px;
+      margin-bottom: 20px;
+    }
+    .casilla {
+      aspect-ratio: 1;
+      display: grid;
+      place-items: center;
+      font-size: .75rem;
+      font-variant-numeric: tabular-nums;
+      color: var(--muted);
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      transition: background .2s, color .2s;
+    }
+    .casilla.llena { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .casilla.meta { border-color: var(--accent); border-width: 2px; font-weight: 700; }
+
+    .jugadas {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .jugadas .boton {
+      min-width: 96px;
+      padding: 14px 24px;
+      font-size: 1.25rem;
+    }
+
+    .comentario {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+      padding: 14px 16px;
+      background: var(--accent-soft);
+      border-radius: 12px;
+    }
+    .comentario .cara { font-size: 1.75rem; line-height: 1; }
+    .comentario .quien { font-size: .75rem; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: .04em; }
+    .comentario p { color: var(--text) !important; }
+    .historial {
+      margin-top: 16px !important;
+      font-size: .8rem;
+      text-align: center;
+      overflow-wrap: anywhere;
+    }
+
+    footer {
+      text-align: center;
+      padding: 16px 0 48px;
+      font-size: .875rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+  <div class="contenedor">
+    <header>
+      <div class="cabecera">
+        <div>
+          <h1>Juego del 20 💀</h1>
+          <p class="subtitulo">¿Podrás ganarle a La Parca?</p>
+        </div>
+        <button class="boton-tema" id="boton-tema" type="button" aria-label="Cambiar tema">🌙</button>
+      </div>
+    </header>
+
+    <main>
+      <section class="tarjeta" aria-labelledby="titulo-reglas">
+        <h2 id="titulo-reglas">Reglas del juego</h2>
+        <ol class="reglas">
+          <li>La cuenta empieza en <strong>0</strong>. Quien abre la partida dice <strong>1 o 2</strong>.</li>
+          <li>Por turnos, cada jugador <strong>suma 1 o 2</strong> al número anterior.</li>
+          <li>No se puede pasar de 20.</li>
+          <li>Gana quien diga <strong>exactamente 20</strong>.</li>
+        </ol>
+      </section>
+
+      <section class="tarjeta" aria-labelledby="titulo-partida">
+        <h2 id="titulo-partida">Partida</h2>
+        <div class="ajustes">
+          <label class="ajuste">Modo
+            <select id="modo">
+              <option value="maquina">Contra La Parca</option>
+              <option value="dos">Dos jugadores</option>
+            </select>
+          </label>
+          <label class="ajuste" id="ajuste-empieza">Empieza
+            <select id="empieza">
+              <option value="0">Jugador 1</option>
+              <option value="1">Jugador 2</option>
+            </select>
+          </label>
+          <button class="boton" id="nueva-partida" type="button">Nueva partida</button>
+        </div>
+
+        <div class="marcador" id="marcador">
+          <span>Tú <strong id="victorias-tu">0</strong></span>
+          <span>·</span>
+          <span>La Parca <strong id="victorias-parca">0</strong></span>
+        </div>
+        <div class="numero" id="numero" aria-live="polite">0</div>
+        <p class="estado" id="estado"></p>
+        <div class="pista" id="pista" aria-hidden="true"></div>
+
+        <div class="jugadas">
+          <button class="boton" id="mas-uno" type="button">+1</button>
+          <button class="boton" id="mas-dos" type="button">+2</button>
+        </div>
+
+        <div class="comentario" aria-live="polite">
+          <span class="cara" aria-hidden="true">💀</span>
+          <div>
+            <div class="quien">La Parca comenta</div>
+            <p id="comentario"></p>
+          </div>
+        </div>
+        <p class="historial" id="historial"></p>
+      </section>
+    </main>
+
+    <footer>© <span id="anio"></span> · Victor Manuel Salcedo Rosero</footer>
+  </div>
+
+  <script>
+    // --- Almacenamiento seguro (funciona aunque localStorage esté bloqueado) ---
+    function leer(clave, porDefecto) {
+      try {
+        const v = localStorage.getItem(clave);
+        return v === null ? porDefecto : JSON.parse(v);
+      } catch (e) {
+        return porDefecto;
+      }
+    }
+    function guardar(clave, valor) {
+      try { localStorage.setItem(clave, JSON.stringify(valor)); } catch (e) {}
+    }
+
+    // --- Tema ---
+    const raiz = document.documentElement;
+    const botonTema = document.getElementById('boton-tema');
+    const oscuroSistema = window.matchMedia('(prefers-color-scheme: dark)');
+
+    function temaActual() {
+      if (raiz.dataset.theme) return raiz.dataset.theme;
+      return oscuroSistema.matches ? 'dark' : 'light';
+    }
+    function pintarBotonTema() {
+      const oscuro = temaActual() === 'dark';
+      botonTema.textContent = oscuro ? '☀️' : '🌙';
+      botonTema.setAttribute('aria-label', oscuro ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro');
+    }
+    botonTema.addEventListener('click', () => {
+      const nuevo = temaActual() === 'dark' ? 'light' : 'dark';
+      raiz.dataset.theme = nuevo;
+      try { localStorage.setItem('tema', nuevo === 'dark' ? 'oscuro' : 'claro'); } catch (e) {}
+      pintarBotonTema();
+    });
+    oscuroSistema.addEventListener('change', pintarBotonTema);
+    pintarBotonTema();
+
+    // --- Juego del 20 ---
+    const META = 20;
+
+    // Comentarios de La Parca. {n} = número actual, {a} = lo que se sumó, {quien} = quien jugó
+    const frases = {
+      inicio: [
+        'Bienvenido. Llega a 20 o muere en el intento. Lo segundo es más probable.',
+        'Empecemos. Tranquilo, solo está en juego tu orgullo. Y quizá tu alma.',
+        'Otra víctima… digo, otro jugador. Adelante.'
+      ],
+      // El jugador deja un número malo (el rival puede ganar si juega bien)
+      flojo: [
+        'Sumaste {a}. Valiente decisión, como cruzar la autopista sin mirar.',
+        '{n}. Ese número quedará bonito en tu lápida.',
+        'Interesante jugada. El forense también la encontrará interesante.',
+        'Llegas a {n}. Yo ya voy midiendo el ataúd.',
+        'Con esa estrategia, mejor ve eligiendo flores. Te sugiero crisantemos.',
+        'Sumaste {a}. Tu árbol genealógico acaba de perder una rama.',
+        'Esa jugada tiene el mismo futuro que un pez en la orilla.',
+        '{n}. Tus neuronas acaban de pedir la eutanasia.',
+        '¿{a}? Así de rápido se te va la vida, y ni te enteras.'
+      ],
+      // El jugador deja un número de la secuencia ganadora
+      bueno: [
+        'Hmm, {n}. Por primera vez siento algo parecido al miedo. Qué asco.',
+        'Buena jugada. Disfrútala, que la vida es corta. La tuya, sobre todo.',
+        'Vaya, sabes contar. Tu maestra de primaria por fin puede descansar en paz.',
+        '{n}… Me has dejado más tieso que el abuelo en el velorio.',
+        'Jugada decente. Ya no te enterraré tan hondo.'
+      ],
+      // La Parca juega su turno
+      parca: [
+        'Sumo {a}. {n}. Respira mientras puedas.',
+        '{n}. Tic, tac. Eso no es un reloj, es tu esperanza agotándose.',
+        'Voy a {n}. Ya le avisé a la funeraria: tienen descuento por volumen.',
+        'Sumo {a}. No es personal. Bueno, un poco sí.',
+        '{n}. Siento el olor a derrota. O a formol. Es difícil distinguirlos.'
+      ],
+      ganaTu: [
+        '¡Llegaste a 20! Ganaste… esta vez. De todos modos nadie sale vivo de aquí.',
+        'Ganaste. Lo anoto en mi lista de cosas que no importan, junto a tu pensión.',
+        '20. Me ganaste. Disfrútalo, nos vemos al final. A todos les llega.'
+      ],
+      ganaParca: [
+        '20. Gané. Que en paz descanse tu orgullo.',
+        'Fin del juego. Tu dignidad se fue antes que tú, como debe ser.',
+        'Gané. No llores, que deshidratarse también mata.'
+      ],
+      ganaDos: [
+        '{quien} dice 20 y gana. Al otro le mandamos una corona de flores.',
+        '{quien} gana. El perdedor puede pasar a recoger sus restos en recepción.',
+        '¡20! Victoria para {quien}. Un minuto de silencio por el otro jugador.'
+      ]
+    };
+
+    // Cada tipo tiene una "bolsa" barajada: no se repite una frase hasta usar todas
+    const bolsas = {};
+    function frase(tipo, datos) {
+      if (!bolsas[tipo] || bolsas[tipo].length === 0) {
+        const anterior = bolsas[tipo + 'Ultima'];
+        bolsas[tipo] = [...frases[tipo]].sort(() => Math.random() - 0.5);
+        if (bolsas[tipo].length > 1 && bolsas[tipo].at(-1) === anterior) bolsas[tipo].unshift(bolsas[tipo].pop());
+      }
+      const elegida = bolsas[tipo].pop();
+      bolsas[tipo + 'Ultima'] = elegida;
+      return elegida
+        .replaceAll('{n}', datos.n)
+        .replaceAll('{a}', datos.a)
+        .replaceAll('{quien}', datos.quien);
+    }
+
+    const el = {
+      modo: document.getElementById('modo'),
+      empieza: document.getElementById('empieza'),
+      ajusteEmpieza: document.getElementById('ajuste-empieza'),
+      nueva: document.getElementById('nueva-partida'),
+      marcador: document.getElementById('marcador'),
+      vTu: document.getElementById('victorias-tu'),
+      vParca: document.getElementById('victorias-parca'),
+      numero: document.getElementById('numero'),
+      estado: document.getElementById('estado'),
+      pista: document.getElementById('pista'),
+      masUno: document.getElementById('mas-uno'),
+      masDos: document.getElementById('mas-dos'),
+      comentario: document.getElementById('comentario'),
+      historial: document.getElementById('historial')
+    };
+
+    // Casillas del 1 al 20
+    for (let i = 1; i <= META; i++) {
+      const c = document.createElement('div');
+      c.className = 'casilla' + (i === META ? ' meta' : '');
+      c.textContent = i === META ? '🏁' : i;
+      el.pista.append(c);
+    }
+
+    let marcador = leer('marcador20', { tu: 0, parca: 0 });
+    const partida = { total: 0, turno: 0, terminada: false, jugadas: [] };
+    let temporizadorParca = null;
+
+    function contraMaquina() { return el.modo.value === 'maquina'; }
+    function nombre(turno) {
+      if (contraMaquina()) return turno === 0 ? 'Tú' : 'La Parca';
+      return turno === 0 ? 'Jugador 1' : 'Jugador 2';
+    }
+    function turnoHumano() {
+      return !partida.terminada && !(contraMaquina() && partida.turno === 1);
+    }
+
+    function pintarJuego() {
+      el.numero.textContent = partida.total;
+      [...el.pista.children].forEach((c, i) => c.classList.toggle('llena', i < partida.total));
+
+      el.masUno.disabled = !turnoHumano() || partida.total + 1 > META;
+      el.masDos.disabled = !turnoHumano() || partida.total + 2 > META;
+
+      if (partida.terminada) {
+        const ganador = nombre(partida.turno);
+        el.estado.textContent = ganador === 'Tú' ? '🎉 ¡Ganaste!' : '🏆 Gana ' + ganador;
+      } else if (contraMaquina() && partida.turno === 1) {
+        el.estado.textContent = 'La Parca está pensando…';
+      } else if (contraMaquina()) {
+        el.estado.textContent = 'Tu turno';
+      } else {
+        el.estado.textContent = 'Turno de ' + nombre(partida.turno);
+      }
+
+      el.historial.textContent = partida.jugadas.length
+        ? partida.jugadas.map(j => j.quien + ' +' + j.a + ' → ' + j.n).join('  ·  ')
+        : '';
+
+      el.marcador.hidden = !contraMaquina();
+      el.vTu.textContent = marcador.tu;
+      el.vParca.textContent = marcador.parca;
+    }
+
+    function jugar(a) {
+      const quien = nombre(partida.turno);
+      partida.total += a;
+      partida.jugadas.push({ quien, a, n: partida.total });
+      const datos = { n: partida.total, a, quien };
+      const juegaParca = contraMaquina() && partida.turno === 1;
+
+      if (partida.total === META) {
+        partida.terminada = true;
+        if (!contraMaquina()) {
+          el.comentario.textContent = frase('ganaDos', datos);
+        } else if (juegaParca) {
+          marcador.parca++;
+          el.comentario.textContent = frase('ganaParca', datos);
+        } else {
+          marcador.tu++;
+          el.comentario.textContent = frase('ganaTu', datos);
+        }
+        guardar('marcador20', marcador);
+        pintarJuego();
+        return;
+      }
+
+      if (juegaParca) {
+        el.comentario.textContent = frase('parca', datos);
+      } else {
+        const tipo = partida.total % 3 === 2 ? 'bueno' : 'flojo';
+        const texto = frase(tipo, datos);
+        el.comentario.textContent = contraMaquina() ? texto : quien + ': ' + texto;
+      }
+
+      partida.turno = 1 - partida.turno;
+      pintarJuego();
+      if (contraMaquina() && partida.turno === 1) {
+        temporizadorParca = setTimeout(turnoParca, 1100);
+      }
+    }
+
+    function turnoParca() {
+      // La Parca juega perfecto; si no tiene jugada ganadora, suma al azar esperando un error
+      let a;
+      const t = partida.total;
+      if (t % 3 !== 2) {
+        a = (t + 1) % 3 === 2 ? 1 : 2;
+      } else {
+        a = Math.random() < 0.5 ? 1 : 2;
+      }
+      if (t + a > META) a = 1;
+      jugar(a);
+    }
+
+    function nuevaPartida() {
+      clearTimeout(temporizadorParca);
+      partida.total = 0;
+      // Contra la máquina, La Parca siempre abre la partida
+      partida.turno = contraMaquina() ? 1 : Number(el.empieza.value);
+      partida.terminada = false;
+      partida.jugadas = [];
+      el.comentario.textContent = frase('inicio', {});
+      pintarJuego();
+      if (contraMaquina() && partida.turno === 1) {
+        temporizadorParca = setTimeout(turnoParca, 1100);
+      }
+    }
+
+    function cambiarModo() {
+      el.ajusteEmpieza.hidden = contraMaquina();
+      nuevaPartida();
+    }
+
+    el.masUno.addEventListener('click', () => { if (turnoHumano()) jugar(1); });
+    el.masDos.addEventListener('click', () => { if (turnoHumano()) jugar(2); });
+    el.nueva.addEventListener('click', nuevaPartida);
+    el.modo.addEventListener('change', cambiarModo);
+    el.empieza.addEventListener('change', nuevaPartida);
+
+    document.getElementById('anio').textContent = new Date().getFullYear();
+    cambiarModo();
+  </script>
+</body>
+</html>
